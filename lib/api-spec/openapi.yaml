@@ -1,0 +1,443 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Video Downloader API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: video
+    description: Video fetching and downloading
+  - name: history
+    description: Download history
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /video/info:
+    post:
+      operationId: getVideoInfo
+      tags: [video]
+      summary: Get video information
+      description: Fetches video metadata and available formats from a URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VideoInfoRequest"
+      responses:
+        "200":
+          description: Video information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoInfo"
+        "400":
+          description: Invalid URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /video/formats:
+    post:
+      operationId: getVideoFormats
+      tags: [video]
+      summary: Get available formats
+      description: Returns all downloadable formats for a given video URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VideoInfoRequest"
+      responses:
+        "200":
+          description: Formats retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormatsResponse"
+        "400":
+          description: Invalid URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /video/download:
+    post:
+      operationId: initiateDownload
+      tags: [video]
+      summary: Initiate a download
+      description: Records a download and returns a download URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DownloadRequest"
+      responses:
+        "200":
+          description: Download initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /history:
+    get:
+      operationId: getHistory
+      tags: [history]
+      summary: Get download history
+      description: Returns recent download history
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: History retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryResponse"
+
+    delete:
+      operationId: clearHistory
+      tags: [history]
+      summary: Clear all history
+      description: Deletes all download history records
+      responses:
+        "200":
+          description: History cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+
+  /history/{id}:
+    delete:
+      operationId: deleteHistoryItem
+      tags: [history]
+      summary: Delete a history item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Item deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [history]
+      summary: Get download statistics
+      description: Returns aggregate download stats
+      responses:
+        "200":
+          description: Stats retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    VideoInfoRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          description: Video URL to fetch info for
+      required:
+        - url
+
+    VideoFormat:
+      type: object
+      properties:
+        format_id:
+          type: string
+        ext:
+          type: string
+        quality:
+          type: string
+        resolution:
+          type: string
+        filesize:
+          type: integer
+          nullable: true
+        fps:
+          type: number
+          nullable: true
+        vcodec:
+          type: string
+          nullable: true
+        acodec:
+          type: string
+          nullable: true
+        url:
+          type: string
+        type:
+          type: string
+          enum: [video, audio, both]
+      required:
+        - format_id
+        - ext
+        - quality
+        - resolution
+        - url
+        - type
+
+    VideoInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        thumbnail:
+          type: string
+          nullable: true
+        duration:
+          type: integer
+          nullable: true
+        uploader:
+          type: string
+          nullable: true
+        upload_date:
+          type: string
+          nullable: true
+        view_count:
+          type: integer
+          nullable: true
+        like_count:
+          type: integer
+          nullable: true
+        platform:
+          type: string
+        webpage_url:
+          type: string
+        formats:
+          type: array
+          items:
+            $ref: "#/components/schemas/VideoFormat"
+        is_playlist:
+          type: boolean
+        playlist_count:
+          type: integer
+          nullable: true
+      required:
+        - id
+        - title
+        - platform
+        - webpage_url
+        - formats
+        - is_playlist
+
+    FormatsResponse:
+      type: object
+      properties:
+        formats:
+          type: array
+          items:
+            $ref: "#/components/schemas/VideoFormat"
+        title:
+          type: string
+        thumbnail:
+          type: string
+          nullable: true
+      required:
+        - formats
+        - title
+
+    DownloadRequest:
+      type: object
+      properties:
+        url:
+          type: string
+        format_id:
+          type: string
+        title:
+          type: string
+        thumbnail:
+          type: string
+          nullable: true
+        platform:
+          type: string
+        quality:
+          type: string
+        ext:
+          type: string
+      required:
+        - url
+        - format_id
+        - title
+        - platform
+        - quality
+        - ext
+
+    DownloadResponse:
+      type: object
+      properties:
+        download_url:
+          type: string
+        filename:
+          type: string
+        history_id:
+          type: integer
+      required:
+        - download_url
+        - filename
+        - history_id
+
+    HistoryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        title:
+          type: string
+        thumbnail:
+          type: string
+          nullable: true
+        platform:
+          type: string
+        quality:
+          type: string
+        ext:
+          type: string
+        downloaded_at:
+          type: string
+        format_id:
+          type: string
+      required:
+        - id
+        - url
+        - title
+        - platform
+        - quality
+        - ext
+        - downloaded_at
+        - format_id
+
+    HistoryResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistoryItem"
+        total:
+          type: integer
+      required:
+        - items
+        - total
+
+    StatsResponse:
+      type: object
+      properties:
+        total_downloads:
+          type: integer
+        platforms:
+          type: array
+          items:
+            type: object
+            properties:
+              platform:
+                type: string
+              count:
+                type: integer
+            required:
+              - platform
+              - count
+        formats:
+          type: array
+          items:
+            type: object
+            properties:
+              ext:
+                type: string
+              count:
+                type: integer
+            required:
+              - ext
+              - count
+      required:
+        - total_downloads
+        - platforms
+        - formats
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: string
+          nullable: true
+      required:
+        - error
+
+    SuccessMessage:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
